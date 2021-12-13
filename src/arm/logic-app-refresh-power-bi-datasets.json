@@ -1,0 +1,232 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_refresh_powerbi_datasets_name": {
+            "defaultValue": "logic-app-refresh-powerbi-datasets",
+            "type": "String"
+        },        
+        "event_grid_topic_name": {
+            "defaultValue": "eg-nyctaxi",
+            "type": "string"
+        },        
+        "conn_azure_event_grid_name": {
+            "defaultValue": "azureeventgrid",
+            "type": "string"
+        },
+        "conn_azure_event_grid_publish_name": {
+            "defaultValue": "azureeventgridpublish",
+            "type": "string"
+        },
+        "conn_power_bi_name": {
+            "defaultValue": "powerbi",
+            "type": "string"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"            
+        }
+    },
+    "variables": {
+        "topics_eg_nyctaxi_id" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections/', parameters('event_grid_topic_name'))]",
+        "conn_resource_uri" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections')]",
+        "conn_provider_uri" : "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis')]",
+        "event_grid_topic_uri" : "[concat('/subscriptions/@{encodeURIComponent(''', subscription().subscriptionId , ''')}/providers/@{encodeURIComponent(''Microsoft.EventGrid.Topics'')}/resource/eventSubscriptions')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_refresh_powerbi_datasets_name')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_Event_Grid_Event_Occurs": {
+                            "splitOn": "@triggerBody()",
+                            "type": "ApiConnectionWebhook",
+                            "inputs": {
+                                "body": {
+                                    "properties": {
+                                        "destination": {
+                                            "endpointType": "webhook",
+                                            "properties": {
+                                                "endpointUrl": "@{listCallbackUrl()}"
+                                            }
+                                        },
+                                        "filter": {
+                                            "includedEventTypes": [
+                                                "NYCTaxi.GreenTaxi.TripData.ZoneSummaryCurated",
+                                                "NYCTaxi.YellowTaxi.TripData.ZoneSummaryCurated"
+                                            ]
+                                        },
+                                        "topic": "[variables('topics_eg_nyctaxi_id')]"
+                                    }
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgrid']['connectionId']"
+                                    }
+                                },
+                                "path": "[variables('event_grid_topic_uri')]",
+                                "queries": {
+                                    "x-ms-api-version": "2017-06-15-preview"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Get_Event_Type_Tokens": {
+                            "runAfter": {
+                                "Parse_JSON": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "eventTypeTokens",
+                                        "type": "array",
+                                        "value": "@split(triggerBody()?['eventType'],'.')"
+                                    }
+                                ]
+                            }
+                        },
+                        "Parse_JSON": {
+                            "runAfter": {},
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@triggerBody()?['data']",
+                                "schema": {
+                                    "properties": {
+                                        "fileName": {
+                                            "type": "string"
+                                        },
+                                        "folderPath": {
+                                            "type": "string"
+                                        },
+                                        "uploadedBy": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Publish_Error_Event": {
+                            "runAfter": {
+                                "Refresh_Zone_Summary_Dataset": [
+                                    "Failed",
+                                    "TimedOut"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": [
+                                    {
+                                        "data": {
+                                            "error": "@actions('Refresh_Zone_Summary_Dataset').outputs.body.error",
+                                            "errorStatusCode": "@actions('Refresh_Zone_Summary_Dataset').outputs.statusCode",
+                                            "uploadedBy": "@body('Parse_JSON')?['uploadedBy']"
+                                        },
+                                        "eventTime": "@{utcNow()}",
+                                        "eventType": "@concat(variables('eventTypeTokens')[0],'.',variables('eventTypeTokens')[1],'.',variables('eventTypeTokens')[2],'.','ZoneSummaryDataRefreshed.Failed')",
+                                        "id": "@{guid()}",
+                                        "subject": "@triggerBody()?['subject']"
+                                    }
+                                ],
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgridpublish']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/eventGrid/api/events"
+                            }
+                        },
+                        "Publish_Refresh_Zone_Summary_Data_Event": {
+                            "runAfter": {
+                                "Refresh_Zone_Summary_Dataset": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": [
+                                    {
+                                        "data": {
+                                            "uploadedBy": "@body('Parse_JSON')?['uploadedBy']"
+                                        },
+                                        "eventTime": "@{utcNow()}",
+                                        "eventType": "@concat(variables('eventTypeTokens')[0],'.',variables('eventTypeTokens')[1],'.',variables('eventTypeTokens')[2],'.','ZoneSummaryDataRefreshed')",
+                                        "id": "@{guid()}",
+                                        "subject": "@triggerBody()?['subject']"
+                                    }
+                                ],
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgridpublish']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/eventGrid/api/events"
+                            }
+                        },
+                        "Refresh_Zone_Summary_Dataset": {
+                            "runAfter": {
+                                "Get_Event_Type_Tokens": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['powerbi']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v1.0/myorg/groups/@{encodeURIComponent('myworkspace')}/datasets/@{encodeURIComponent('fc41ba68-8653-4a86-b50a-74cbfc2d8360')}/refreshes",
+                                "queries": {
+                                    "pbi_source": "powerAutomate"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureeventgrid": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_event_grid_name'))]",
+                                "connectionName": "azureeventgrid",
+                                "id": "[concat(variables('conn_provider_uri'), '/azureeventgrid')]"
+                            },
+                            "azureeventgridpublish": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_event_grid_publish_name'))]",
+                                "connectionName": "azureeventgridpublish",
+                                "id": "[concat(variables('conn_provider_uri'), '/azureeventgridpublish')]"
+                            },    
+                            "powerbi": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_power_bi_name'))]",
+                                "connectionName": "powerbi",
+                                "id": "[concat(variables('conn_provider_uri'), '/powerbi')]"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}    

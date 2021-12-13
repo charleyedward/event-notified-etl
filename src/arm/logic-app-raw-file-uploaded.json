@@ -1,0 +1,332 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_raw_file_uploaded_name": {
+            "defaultValue": "logic-app-raw-file-uploaded",
+            "type": "string"
+        },
+        "event_grid_topic_name": {
+            "defaultValue": "eg-nyctaxi",
+            "type": "string"
+        },
+        "conn_azure_blob_name": {
+            "defaultValue": "datalake",
+            "type": "string"
+        },
+        "conn_azure_event_grid_name": {
+            "defaultValue": "azureeventgrid",
+            "type": "string"
+        },
+        "conn_azure_event_grid_publish_name": {
+            "defaultValue": "azureeventgridpublish",
+            "type": "string"
+        },
+        "conn_sharepoint_online_name": {
+            "defaultValue": "sharepointonline",
+            "type": "string"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"            
+        }
+    },
+    "variables": {
+        "topics_eg_nyctaxi_id" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections/', parameters('event_grid_topic_name'))]",
+        "conn_resource_uri" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections')]",
+        "conn_provider_uri" : "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis')]",
+        "event_grid_topic_uri" : "[concat('/subscriptions/@{encodeURIComponent(''', subscription().subscriptionId , ''')}/providers/@{encodeURIComponent(''Microsoft.EventGrid.Topics'')}/resource/eventSubscriptions')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_raw_file_uploaded_name')]",
+            "location": "[parameters('location')]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_Event_Grid_Event_Occurs": {
+                            "splitOn": "@triggerBody()",
+                            "type": "ApiConnectionWebhook",
+                            "inputs": {
+                                "body": {
+                                    "properties": {
+                                        "destination": {
+                                            "endpointType": "webhook",
+                                            "properties": {
+                                                "endpointUrl": "@{listCallbackUrl()}"
+                                            }
+                                        },
+                                        "filter": {
+                                            "includedEventTypes": [
+                                                "NYCTaxi.GreenTaxi.TripData.FileIngested",
+                                                "NYCTaxi.YellowTaxi.TripData.FileIngested"
+                                            ]
+                                        },
+                                        "topic": "[variables('topics_eg_nyctaxi_id')]"
+                                    }
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azure_event_grid']['connectionId']"
+                                    }
+                                },
+                                "path": "[variables('event_grid_topic_uri')]",
+                                "queries": {
+                                    "x-ms-api-version": "2017-06-15-preview"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Get_File_Content": {
+                            "runAfter": {
+                                "Parse_Event_Body": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['sharepoint_online']['connectionId']"
+                                    }
+                                },
+                                "method": "get",
+                                "path": "/datasets/@{encodeURIComponent(encodeURIComponent(body('Parse_Event_Body')?['data']?['siteAddress']))}/GetFileContentByPath",
+                                "queries": {
+                                    "inferContentType": true,
+                                    "path": "@{concat(body('Parse_Event_Body')?['data']?['folderPath'],body('Parse_Event_Body')?['data']?['fileName'])}",
+                                    "queryParametersSingleEncoded": true
+                                }
+                            }
+                        },
+                        "Parse_Event_Body": {
+                            "runAfter": {},
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@triggerBody()",
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "properties": {
+                                                "fileName": {
+                                                    "type": "string"
+                                                },
+                                                "folderPath": {
+                                                    "type": "string"
+                                                },
+                                                "siteAddress": {
+                                                    "type": "string"
+                                                },
+                                                "uploadedBy": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "dataVersion": {
+                                            "type": "string"
+                                        },
+                                        "eventTime": {
+                                            "type": "string"
+                                        },
+                                        "eventType": {
+                                            "type": "string"
+                                        },
+                                        "id": {
+                                            "type": "string"
+                                        },
+                                        "metadataVersion": {
+                                            "type": "string"
+                                        },
+                                        "subject": {
+                                            "type": "string"
+                                        },
+                                        "topic": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Publish_Error_Event": {
+                            "runAfter": {
+                                "Upload_File": [
+                                    "TimedOut",
+                                    "Failed"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": [
+                                    {
+                                        "data": {
+                                            "error": "@actions('Upload_File').outputs.statusCode",
+                                            "errorStatusCode": "@actions('Upload_File').outputs.body.error",
+                                            "uploadedBy": "@body('Parse_Event_Body')?['data']?['uploadedBy']"
+                                        },
+                                        "dataVersion": 1,
+                                        "eventTime": "@{utcNow()}",
+                                        "eventType": "@concat(variables('outputEventType'),'.Failed')",
+                                        "id": "@{guid()}",
+                                        "subject": "@body('Parse_Event_Body')?['subject']"
+                                    }
+                                ],
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azure_event_grid_publish']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/eventGrid/api/events"
+                            }
+                        },
+                        "Publish_Raw_File_Uploaded_Event": {
+                            "runAfter": {
+                                "Upload_File": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": [
+                                    {
+                                        "data": {
+                                            "fileName": "@body('Parse_Event_Body')?['data']?['fileName']",
+                                            "folderPath": "@{variables('rawFolderPath')}",
+                                            "uploadedBy": "@body('Parse_Event_Body')?['data']?['uploadedBy']"
+                                        },
+                                        "dataVersion": 1,
+                                        "eventTime": "@{utcNow()}",
+                                        "eventType": "@variables('outputEventType')",
+                                        "id": "@{guid()}",
+                                        "subject": "@body('Parse_Event_Body')?['subject']"
+                                    }
+                                ],
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azure_event_grid_publish']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/eventGrid/api/events"
+                            }
+                        },
+                        "Set_Output_Event_Type": {
+                            "runAfter": {
+                                "Set_Raw_Folder_Path": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "outputEventType",
+                                        "type": "string",
+                                        "value": "@{if(equals(body('Parse_Event_Body')?['eventType'],'NYCTaxi.GreenTaxi.TripData.FileIngested'), 'NYCTaxi.GreenTaxi.TripData.RawFileUploaded','NYCTaxi.YellowTaxi.TripData.RawFileUploaded')}"
+                                    }
+                                ]
+                            }
+                        },
+                        "Set_Raw_Folder_Path": {
+                            "runAfter": {
+                                "Get_File_Content": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "rawFolderPath",
+                                        "type": "string",
+                                        "value": "/data/raw/@{if(equals(body('Parse_Event_Body')?['eventType'],'NYCTaxi.GreenTaxi.TripData.FileIngested'), 'green_taxi', 'yellow_taxi')}"
+                                    }
+                                ]
+                            }
+                        },
+                        "Upload_File": {
+                            "runAfter": {
+                                "Set_Output_Event_Type": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": "@body('Get_File_Content')",
+                                "headers": {
+                                    "ReadFileMetadataFromServer": true
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azure_blob']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('datalakefdvu573zsnpjo'))}/files",
+                                "queries": {
+                                    "folderPath": "@variables('rawFolderPath')",
+                                    "name": "@body('Parse_Event_Body')?['data']?['fileName']",
+                                    "queryParametersSingleEncoded": true
+                                }
+                            },
+                            "runtimeConfiguration": {
+                                "contentTransfer": {
+                                    "transferMode": "Chunked"
+                                }
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azure_blob": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_blob_name'))]",
+                                "connectionName": "azure_blob",
+                                "connectionProperties": {
+                                    "authentication": {
+                                        "type": "ManagedServiceIdentity"
+                                    }
+                                },
+                                "id": "[concat(variables('conn_provider_uri'), '/sharepointonline')]" 
+                            },
+                            "azure_event_grid": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_event_grid_name'))]",
+                                "connectionName": "azure_event_grid",
+                                "id": "[concat(variables('conn_provider_uri'), '/azureeventgrid')]"
+                            },
+                            "azure_event_grid_publish": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_event_grid_publish_name'))]",
+                                "connectionName": "azure_eventgrid_publish",
+                                "id": "[concat(variables('conn_provider_uri'), '/azureeventgridpublish')]"
+                            },
+                            "sharepoint_online": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_sharepoint_online_name'))]",
+                                "connectionName": "sharepoint_online",
+                                "id": "[concat(variables('conn_provider_uri'), '/sharepointonline')]"
+                            }
+                        }
+                    }                    
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,324 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {    
+    "github_repository": {
+      "type": "string",
+      "metadata": {
+        "description": "Github repository"
+      }
+    },
+    "template_branch": {
+      "type": "string",
+      "metadata": {
+        "description": "Source branch for ARM templates"
+      },
+      "defaultValue": "main"
+    },
+    "databricks_token": {
+      "type": "SecureString",
+      "defaultValue": ""
+    },
+    "databricks_url": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "green_taxi_process_raw_db_job_id": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "yellow_taxi_process_raw_db_job_id": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "green_taxi_process_cleansed_db_job_id": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "yellow_taxi_process_cleansed_db_job_id": {
+      "type": "int",
+      "defaultValue": 0
+    }
+  },  
+  "variables": {
+    "template_base_url": "[concat('https://raw.githubusercontent.com/',parameters('github_repository'),'/',parameters('template_branch'),'/src/arm/')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ResourceNames",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'resource-names.json')]",
+          "contentVersion": "1.0.0.0"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "StorageAccount",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'azure-datalake-gen2.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "storage_account_name": {
+            "value": "[reference('ResourceNames').outputs.storage_account_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "EventGridTopic",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'azure-event-grid-topic.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "event_grid_topic_name": {
+            "value": "[reference('ResourceNames').outputs.event_grid_topic_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ApiConnAzureBlob",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'api-connection-azure-blob.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "api_connection_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_azure_blob_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames","StorageAccount"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ApiConnEventGridPublish",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'api-connection-azure-event-grid-publish.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "api_connection_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_publish_name.value]"
+          },
+          "event_grid_topic_endpoint": {
+            "value": "https://eg-nyctaxi.eastus2-1.eventgrid.azure.net/api/events"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames", "EventGridTopic"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ApiConnEventGrid",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'api-connection-azure-event-grid.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "api_connection_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames", "EventGridTopic"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ApiConnPowerBI",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'api-connection-powerbi.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "api_connection_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_power_bi_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ApiConnSharepointOnline",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'api-connection-sharepoint-online.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "api_connection_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_sharepoint_online_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames"]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "LogicAppRawFileUploaded",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'logic-app-raw-file-uploaded.json')]",
+          "contentVersion": "1.0.0.0"
+        },        
+        "parameters": {          
+          "event_grid_topic_name": {
+            "value": "[reference('ResourceNames').outputs.event_grid_topic_name.value]"
+          },
+          "conn_azure_blob_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_azure_blob_name.value]"
+          },
+          "conn_azure_event_grid_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_name.value]"
+          },
+          "conn_azure_event_grid_publish_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_publish_name.value]"
+          },
+          "conn_sharepoint_online_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_sharepoint_online_name.value]"
+          }
+        },
+        "dependsOn": ["ResourceNames", "EventGridTopic", "ApiConnAzureBlob", "ApiConnEventGridPublish", "ApiConnEventGrid", "ApiConnPowerBI", "ApiConnSharepointOnline"]
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "LogicAppProcessRaw",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'logic-app-process-raw.json')]",
+          "contentVersion": "1.0.0.0"
+        },        
+        "parameters": {          
+          "event_grid_topic_name": {
+            "value": "[reference('ResourceNames').outputs.event_grid_topic_name.value]"
+          },          
+          "conn_azure_event_grid_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_name.value]"
+          },
+          "conn_azure_event_grid_publish_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_publish_name.value]"
+          },
+          "databricks_token": {
+            "value": "[parameters('databricks_token')]"
+          },
+          "databricks_url": {
+            "value": "[parameters('databricks_url')]"
+          },
+          "green_taxi_process_raw_db_job_id": {
+            "value": "[parameters('green_taxi_process_raw_db_job_id')]"
+          },
+          "yellow_taxi_process_raw_db_job_id": {
+            "value": "[parameters('yellow_taxi_process_raw_db_job_id')]"
+          }          
+        },
+        "dependsOn": ["ResourceNames", "EventGridTopic", "ApiConnAzureBlob", "ApiConnEventGridPublish", "ApiConnEventGrid"]
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "LogicAppProcessCleansed",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'logic-app-process-cleansed.json')]",
+          "contentVersion": "1.0.0.0"
+        },        
+        "parameters": {          
+          "event_grid_topic_name": {
+            "value": "[reference('ResourceNames').outputs.event_grid_topic_name.value]"
+          },          
+          "conn_azure_event_grid_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_name.value]"
+          },
+          "conn_azure_event_grid_publish_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_publish_name.value]"
+          },
+          "databricks_token": {
+            "value": "[parameters('databricks_token')]"
+          },
+          "databricks_url": {
+            "value": "[parameters('databricks_url')]"
+          },
+          "green_taxi_process_cleansed_db_job_id": {
+            "value": "[parameters('green_taxi_process_cleansed_db_job_id')]"
+          },
+          "yellow_taxi_process_cleansed_db_job_id": {
+            "value": "[parameters('yellow_taxi_process_cleansed_db_job_id')]"
+          }          
+        },
+        "dependsOn": ["ResourceNames", "EventGridTopic", "ApiConnAzureBlob", "ApiConnEventGridPublish", "ApiConnEventGrid"]
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "LogicAppRefreshedPowerBIDataset",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'logic-app-refresh-power-bi-datasets.json')]",
+          "contentVersion": "1.0.0.0"
+        },        
+        "parameters": {          
+          "event_grid_topic_name": {
+            "value": "[reference('ResourceNames').outputs.event_grid_topic_name.value]"
+          },          
+          "conn_azure_event_grid_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_name.value]"
+          },
+          "conn_azure_event_grid_publish_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_event_grid_topic_publish_name.value]"
+          },
+          "conn_power_bi_name": {
+            "value": "[reference('ResourceNames').outputs.api_conn_power_bi_name.value]"
+          }          
+        },
+        "dependsOn": ["ResourceNames", "EventGridTopic", "ApiConnAzureBlob", "ApiConnEventGridPublish", "ApiConnEventGrid", "ApiConnPowerBI"]
+      }
+    }
+  ],
+  "outputs": {
+    "storage_account_name": {
+      "type": "string",
+      "value": "[reference('ResourceNames').outputs.storage_account_name.value]"
+    }    
+  }
+}

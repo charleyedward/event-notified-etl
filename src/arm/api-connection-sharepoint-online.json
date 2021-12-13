@@ -1,0 +1,30 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "api_connection_name": {
+            "defaultValue": "sharepointonline",
+            "type": "String"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"            
+        }
+    },    
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[parameters('api_connection_name')]",
+            "location": "[parameters('location')]",
+            "kind": "V1",
+            "properties": {                                
+                "displayName": "[parameters('api_connection_name')]",
+                "api": {
+                    "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/', 'sharepointonline')]"
+                }                                
+            }
+        }
+    ]
+}

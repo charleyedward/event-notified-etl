@@ -1,0 +1,282 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workflows_process_cleansed_name": {
+            "defaultValue": "logic-app-process-cleansed",
+            "type": "String"
+        },        
+        "event_grid_topic_name": {
+            "defaultValue": "eg-nyctaxi",
+            "type": "string"
+        },        
+        "conn_azure_event_grid_name": {
+            "defaultValue": "azureeventgrid",
+            "type": "string"
+        },
+        "conn_azure_event_grid_publish_name": {
+            "defaultValue": "azureeventgridpublish",
+            "type": "string"
+        },
+        "databricks_token": {
+            "defaultValue": "",
+            "type": "SecureString"
+        },
+        "databricks_url": {
+            "defaultValue": "",
+            "type": "string"
+        },
+        "green_taxi_process_cleansed_db_job_id": {
+            "defaultValue": 0,
+            "type": "int"
+        },
+        "yellow_taxi_process_cleansed_db_job_id": {
+            "defaultValue": 0,
+            "type": "int"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"            
+        }        
+    },
+    "variables": {
+        "topics_eg_nyctaxi_id" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections/', parameters('event_grid_topic_name'))]",
+        "conn_resource_uri" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections')]",
+        "conn_provider_uri" : "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis')]",
+        "event_grid_topic_uri" : "[concat('/subscriptions/@{encodeURIComponent(''', subscription().subscriptionId , ''')}/providers/@{encodeURIComponent(''Microsoft.EventGrid.Topics'')}/resource/eventSubscriptions')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Logic/workflows",
+            "apiVersion": "2017-07-01",
+            "name": "[parameters('workflows_process_cleansed_name')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "state": "Enabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {},
+                            "type": "Object"
+                        },
+                        "db-token": {
+                            "defaultValue": "[parameters('databricks_token')]",
+                            "type": "SecureString"
+                        },
+                        "db-url-job": {
+                            "defaultValue": "[concat(parameters('databricks_url'),'/api/2.0/jobs/run-now')]",
+                            "type": "String"
+                        },
+                        "green-taxi-process-cleansed-db-job-id": {
+                            "defaultValue": "[parameters('green_taxi_process_cleansed_db_job_id')]",
+                            "type": "Int"
+                        },
+                        "yellow-taxi-process-cleansed-db-job-id": {
+                            "defaultValue": "[parameters('yellow_taxi_process_cleansed_db_job_id')]",
+                            "type": "Int"
+                        }
+                },
+                    "triggers": {
+                        "When_Event_Grid_Event_Occurs": {
+                            "splitOn": "@triggerBody()",
+                            "type": "ApiConnectionWebhook",
+                            "inputs": {
+                                "body": {
+                                    "properties": {
+                                        "destination": {
+                                            "endpointType": "webhook",
+                                            "properties": {
+                                                "endpointUrl": "@{listCallbackUrl()}"
+                                            }
+                                        },
+                                        "filter": {
+                                            "includedEventTypes": [
+                                                "NYCTaxi.GreenTaxi.TripData.FileCleansed",
+                                                "NYCTaxi.YellowTaxi.TripData.FileCleansed"
+                                            ]
+                                        },
+                                        "topic": "[variables('topics_eg_nyctaxi_id')]"
+                                    }
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgrid']['connectionId']"
+                                    }
+                                },
+                                "path": "[variables('event_grid_topic_uri')]",
+                                "queries": {
+                                    "x-ms-api-version": "2017-06-15-preview"
+                                }
+                            }
+                        }
+                    },
+                    "actions": {
+                        "Get_Event_Type_Tokens": {
+                            "runAfter": {
+                                "Parse_Event_Data": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "eventTypeTokens",
+                                        "type": "array",
+                                        "value": "@split(triggerBody()?['eventType'],'.')"
+                                    }
+                                ]
+                            }
+                        },
+                        "Parse_Event_Data": {
+                            "runAfter": {},
+                            "type": "ParseJson",
+                            "inputs": {
+                                "content": "@triggerBody()?['data']",
+                                "schema": {
+                                    "properties": {
+                                        "fileName": {
+                                            "type": "string"
+                                        },
+                                        "folderPath": {
+                                            "type": "string"
+                                        },
+                                        "uploadedBy": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "Process_Cleansed": {
+                            "runAfter": {
+                                "Set_Job_Id": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "Http",
+                            "inputs": {
+                                "body": {
+                                    "job_id": "@variables('jobId')",
+                                    "notebook_params": {
+                                        "fileName": "@body('Parse_Event_Data')?['fileName']",
+                                        "folderPath": "@body('Parse_Event_Data')?['folderPath']",
+                                        "subject": "@triggerBody()?['subject']",
+                                        "uploadedBy": "@body('Parse_Event_Data')?['uploadedBy']"
+                                    }
+                                },
+                                "headers": {
+                                    "Authorization": "Bearer @{parameters('db-token')}",
+                                    "Content-Type": "application/json"
+                                },
+                                "method": "POST",
+                                "uri": "@parameters('db-url-job')"
+                            }
+                        },
+                        "Publish_Error_Event": {
+                            "runAfter": {
+                                "Process_Cleansed": [
+                                    "TimedOut",
+                                    "Failed"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": [
+                                    {
+                                        "data": {
+                                            "error": "@{actions('Process_Cleansed').outputs.body.error}",
+                                            "errorStatusCode": "@{actions('Process_Cleansed').outputs.statusCode}",
+                                            "uploadedBy": "@{body('Parse_Event_Data')?['uploadedBy']}"
+                                        },
+                                        "dataVersion": 1,
+                                        "eventTime": "@{utcNow()}",
+                                        "eventType": "@{concat(variables('eventTypeTokens')[0],'.',variables('eventTypeTokens')[1],'.',variables('eventTypeTokens')[2],'.','ProcessCleansedStared.Failed')}",
+                                        "id": "@{guid()}",
+                                        "subject": "@{triggerBody()?['subject']}"
+                                    }
+                                ],
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgridpublish']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/eventGrid/api/events"
+                            }
+                        },
+                        "Publish_Process_Cleansed_Started_Event": {
+                            "runAfter": {
+                                "Process_Cleansed": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": [
+                                    {
+                                        "data": {
+                                            "fileName": "@{body('Parse_Event_Data')?['fileName']}",
+                                            "folderPath": "@{body('Parse_Event_Data')?['folderPath']}",
+                                            "uploadedBy": "@{body('Parse_Event_Data')?['uploadedBy']}"
+                                        },
+                                        "dataVersion": 1,
+                                        "eventTime": "@{utcNow()}",
+                                        "eventType": "@{concat(variables('eventTypeTokens')[0],'.',variables('eventTypeTokens')[1],'.',variables('eventTypeTokens')[2],'.','ProcessCleansedStarted')}",
+                                        "id": "@{guid()}",
+                                        "subject": "@{triggerBody()?['subject']}"
+                                    }
+                                ],
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgridpublish']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/eventGrid/api/events"
+                            }
+                        },
+                        "Set_Job_Id": {
+                            "runAfter": {
+                                "Get_Event_Type_Tokens": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "InitializeVariable",
+                            "inputs": {
+                                "variables": [
+                                    {
+                                        "name": "jobId",
+                                        "type": "string",
+                                        "value": "@{\r\nif(equals(triggerBody()?['eventType'],'NYCTaxi.GreenTaxi.TripData.FileCleansed'),parameters('green-taxi-process-cleansed-db-job-id'),parameters('yellow-taxi-process-cleansed-db-job-id'))}"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "outputs": {}
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureeventgrid": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_event_grid_name'))]",
+                                "connectionName": "azureeventgrid",
+                                "id": "[concat(variables('conn_provider_uri'), '/azureeventgrid')]"
+                            },
+                            "azureeventgridpublish": {
+                                "connectionId": "[concat(variables('conn_resource_uri'), '/', parameters('conn_azure_event_grid_publish_name'))]",
+                                "connectionName": "azureeventgridpublish",
+                                "id": "[concat(variables('conn_provider_uri'), '/azureeventgridpublish')]"
+                            }
+                        }
+    
+                    }
+                }
+            }
+        }
+    ]
+}    

@@ -1,0 +1,10 @@
+{
+    "existing_cluster_id": "",
+    "notebook_task": {
+        "notebook_path": "/Shared/event-etl/nb-02-green-taxi-process-raw",
+        "base_parameters": {}
+    },
+    "email_notifications": {},
+    "name": "jb-02-green-taxi-process-raw",
+    "max_concurrent_runs": 1
+}

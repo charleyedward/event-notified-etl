@@ -1,0 +1,10 @@
+{
+    "existing_cluster_id": "",
+    "notebook_task": {
+        "notebook_path": "/Shared/event-etl/nb-04-zone-lookup-process-all",
+        "base_parameters": {}
+    },
+    "email_notifications": {},
+    "name": "jb-04-zone-lookup-process-all",
+    "max_concurrent_runs": 1
+}

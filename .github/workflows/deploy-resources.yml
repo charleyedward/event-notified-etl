@@ -1,0 +1,95 @@
+name: Deploy Resources
+
+on:
+  workflow_dispatch:
+
+env: 
+  resource: '2ff814a6-3304-4ab8-85cb-cd0e6f879c1d'
+  dBwSPath: "/Shared/event-etl" 
+
+jobs:
+  deployResources:
+    name: Deploy Resources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v2
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
+            
+      - name: Install databricks CLI
+        uses: microsoft/install-databricks-cli@v1.0.0
+      
+      - name: Get AAD Tenant ID, Subscription ID and Resource Group Name
+        uses: azure/powershell@v1
+        id: context
+        with:
+          azPSVersion: "3.1.0"
+          inlineScript: |
+            echo "::set-output name=subscriptionId::$((Get-AzContext).Subscription.id)"
+            echo "::set-output name=tenantId::$((Get-AzContext).Tenant.id)"
+            echo "::set-output name=resourceGroupName::$((Get-AzResourceGroup).ResourceGroupName)"
+      
+      - name: Create Databricks Workspace
+        uses: azure/arm-deploy@v1
+        id: createDbWs
+        with:
+          subscriptionId: ${{ steps.context.outputs.subscriptionId }}
+          resourceGroupName: ${{ steps.context.outputs.resourceGroupName }}
+          template: ./src/arm/link-template-databricks-ws.json
+          parameters: github_repository=${{ github.repository }}          
+      
+      - name: Get Azure AD Token for Databricks and Databricks workspace URL
+        uses: azure/CLI@v1
+        id: getDbWsDetails
+        with:
+          azcliversion: 2.30.0
+          inlineScript: |
+            az extension add --name databricks
+            echo "::set-output name=dbWsUrl::https://$(az databricks workspace show --resource-group ${{ steps.context.outputs.resourceGroupName }} --name ${{ steps.createDbWs.outputs.databricksWorkspaceName }} --query workspaceUrl --out tsv)"
+            echo "::set-output name=accessToken::$(az account get-access-token --resource ${{ env.resource }} --query accessToken --output tsv)"
+
+      - name: Create Databricks Configuration
+        id: getDbWsConfig
+        run: |
+          touch ~/.databrickscfg
+          echo [DEFAULT] >> ~/.databrickscfg
+          echo host = ${{ steps.getDbWsDetails.outputs.dbWsUrl }} >> ~/.databrickscfg
+          echo token = ${{ steps.getDbWsDetails.outputs.accessToken }} >> ~/.databrickscfg
+          echo "::set-output name=patToken::$(databricks tokens create --lifetime-seconds 31536000 --comment "For Azure Logic Apps" | jq -r .token_value)"
+      
+      - name: Create Databricks Cluster
+        id: createDbCluster
+        run: echo "::set-output name=clusterId::$(databricks clusters create --json-file ./src/databricks/clusters/cl-01-spark3.2.json | jq -r '.cluster_id')"
+      
+      - name: Import Databricks Notebooks
+        run: databricks workspace import_dir ./src/databricks/notebooks ${{ env.dBwSPath }}
+
+      - name: Create Databricks Jobs
+        id: createDbJobs
+        run: |
+          databricks jobs configure --version=2.1
+          for file in ./src/databricks/jobs/*
+          do            
+            NOTE_BOOK_NAME=$(jq -r .name "$file")
+            jq '.existing_cluster_id="${{ steps.createDbCluster.outputs.clusterId }}"' <"$file" >"$file.fixed"     
+            JOB_ID=$(databricks jobs create --json-file "$file.fixed" | jq '.job_id')            
+            echo "::set-output name=job-id-${NOTE_BOOK_NAME}::$JOB_ID"
+          done      
+      
+      - name: Deploy Azure Resources
+        uses: azure/arm-deploy@v1
+        id: deployAzureResources
+        with:
+          subscriptionId: ${{ steps.context.outputs.subscriptionId }}
+          resourceGroupName: ${{ steps.context.outputs.resourceGroupName }}
+          template: ./src/arm/link-template-azure-resources.json
+          parameters: |
+            github_repository=${{ github.repository }} databricks_url=${{ steps.getDbWsDetails.outputs.dbWsUrl }} databricks_token=${{ steps.getDbWsConfig.outputs.patToken }} green_taxi_process_raw_db_job_id=${{ steps.createDbJobs.outputs.job-id-jb-02-green-taxi-process-raw }} yellow_taxi_process_raw_db_job_id=${{ steps.createDbJobs.outputs.job-id-jb-02-yellow-taxi-process-raw }} green_taxi_process_cleansed_db_job_id=${{ steps.createDbJobs.outputs.job-id-jb-03-green-taxi-process-cleansed }} yellow_taxi_process_cleansed_db_job_id=${{ steps.createDbJobs.outputs.job-id-jb-03-yellow-taxi-process-cleansed }}
+
+      - name: Echo Output
+        run: echo "${{ steps.createDbJobs.outputs.job-id-jb-02-green-taxi-process-raw }}"

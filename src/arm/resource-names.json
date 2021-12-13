@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {    
+    "unique_string": {
+      "type": "string",
+      "metadata": {
+        "description": "String for uniquely identifying resources"
+      },
+      "defaultValue": "[uniqueString(subscription().subscriptionId, resourceGroup().id)]"
+    }
+  },
+  "variables": {    
+    "event_grid_topic_name": "[concat('eg-topic-',parameters('unique_string'))]",    
+    "storage_account_name": "[concat('datalake',parameters('unique_string'))]",    
+    "databricks_workspace_name": "[concat('databricks-ws-',parameters('unique_string'))]",
+    "api_conn_azure_blob_name": "azureblob",
+    "api_conn_event_grid_topic_publish_name": "azureeventgridpublish",
+    "api_conn_event_grid_topic_name": "azureeventgrid",
+    "api_conn_power_bi_name": "powerbi",
+    "api_conn_sharepoint_online_name": "sharepointonline"    
+  },
+  "resources": [],
+  "outputs": {
+    "storage_account_name": {
+      "type": "string",
+      "value": "[variables('storage_account_name')]"
+    },
+    "event_grid_topic_name": {
+      "type": "string",
+      "value": "[variables('event_grid_topic_name')]"
+    },
+    "databricks_workspace_name": {
+      "type": "string",
+      "value": "[variables('databricks_workspace_name')]"
+    },
+    "api_conn_azure_blob_name": {
+      "type": "string",
+      "value": "[variables('api_conn_azure_blob_name')]"
+    },
+    "api_conn_event_grid_topic_publish_name": {
+      "type": "string",
+      "value": "[variables('api_conn_event_grid_topic_publish_name')]"
+    },
+    "api_conn_event_grid_topic_name": {
+      "type": "string",
+      "value": "[variables('api_conn_event_grid_topic_name')]"
+    },
+    "api_conn_power_bi_name": {
+      "type": "string",
+      "value": "[variables('api_conn_power_bi_name')]"
+    },
+    "api_conn_sharepoint_online_name": {
+      "type": "string",
+      "value": "[variables('api_conn_sharepoint_online_name')]"
+    }
+           
+  }
+}

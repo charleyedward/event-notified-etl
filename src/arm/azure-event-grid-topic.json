@@ -1,0 +1,39 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "event_grid_topic_name": {
+            "defaultValue": "eg-nyctaxi",
+            "type": "string"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"
+        },
+        "event_grid_sku" : {
+            "defaultValue": "Basic",
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.EventGrid/topics",
+            "apiVersion": "2021-06-01-preview",
+            "name": "[parameters('event_grid_topic_name')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "[parameters('event_grid_sku')]"
+            },
+            "kind": "Azure",
+            "identity": {
+                "type": "None"
+            },
+            "properties": {
+                "inputSchema": "EventGridSchema",
+                "publicNetworkAccess": "Enabled",
+                "disableLocalAuth": false
+            }
+        }
+    ]
+}

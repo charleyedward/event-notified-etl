@@ -1,0 +1,10 @@
+{
+    "existing_cluster_id": "",
+    "notebook_task": {
+        "notebook_path": "/Shared/event-etl/nb-03-yellow-taxi-process-cleansed",
+        "base_parameters": {}
+    },
+    "email_notifications": {},
+    "name": "jb-03-yellow-taxi-process-cleansed",
+    "max_concurrent_runs": 1
+}

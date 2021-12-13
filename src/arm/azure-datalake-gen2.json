@@ -1,0 +1,62 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storage_account_name": {
+            "defaultValue": "dpdatalake",
+            "type": "string"
+        },
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"
+        },
+        "storage_sku": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_ZRS",
+                "Standard_GRS",
+                "Standard_RAGRS"
+            ]
+        }    
+    },    
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2021-06-01",
+            "name": "[parameters('storage_account_name')]",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "[parameters('storage_sku')]"
+            },            
+            "kind": "StorageV2",
+            "properties": {          
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "isHnsEnabled": true,
+                "supportsHttpsTrafficOnly": true
+            }
+        },        
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2021-06-01",
+            "name": "[concat(parameters('storage_account_name'), '/default/data')]",
+            "dependsOn": [ 
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storage_account_name'))]"
+            ]            
+        }        
+    ]
+}

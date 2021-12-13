@@ -1,0 +1,38 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "defaultValue": "[resourceGroup().location]",
+            "type": "string"
+        },
+        "databricks_workspace_name": {
+            "defaultValue": "databricks-ws12",
+            "type": "string"
+        },
+        "tier": {
+            "defaultValue": "trial",
+            "type": "string"
+        }
+    },
+    "variables": {
+        "managed_resource_group_name": "[concat('databricks-rg-', parameters('databricks_workspace_name'))]",
+        "managed_resource_group_id": "[concat(subscription().id, '/resourceGroups/', variables('managed_resource_group_name'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Databricks/workspaces",
+            "apiVersion": "2018-04-01",
+            "name": "[parameters('databricks_workspace_name')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [],
+            "sku": {
+                "name": "[parameters('tier')]"
+            },
+            "properties": {
+                "managedResourceGroupId": "[variables('managed_resource_group_id')]",
+                "parameters": {}
+            }
+        }
+    ]
+}

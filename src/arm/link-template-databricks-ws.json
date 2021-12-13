@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {    
+    "github_repository": {
+      "type": "string",
+      "metadata": {
+        "description": "Github repository"
+      }
+    },
+    "template_branch": {
+      "type": "string",
+      "metadata": {
+        "description": "Source branch for ARM templates"
+      },
+      "defaultValue": "main"
+    }
+  },  
+  "variables": {
+    "template_base_url": "[concat('https://raw.githubusercontent.com/',parameters('github_repository'),'/',parameters('template_branch'),'/src/arm/')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "ResourceNames",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'resource-names.json')]",
+          "contentVersion": "1.0.0.0"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-10-01",
+      "name": "Databricks",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(variables('template_base_url'), 'azure-databricks.json')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "databricks_workspace_name": {
+            "value": "[reference('ResourceNames').outputs.databricks_workspace_name.value]"
+          }
+        }
+      },
+      "dependsOn": ["ResourceNames"]
+    }  
+  ],
+  "outputs": {
+      "databricksWorkspaceName": {
+         "type": "string",
+         "value": "[reference('ResourceNames').outputs.databricks_workspace_name.value]"
+      }
+  }
+}
