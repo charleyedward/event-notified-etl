@@ -1,6 +1,6 @@
 # Event Notified ETL Template App
 
-## Overview
+## What is "Event-Driven"
 
 Event driven architecture is becoming increasingly common in both transactional and analytical processing. According to Martin Fowler, an [Event Driven](https://martinfowler.com/articles/201701-event-driven.html) approach can be typically classified into following:
 
@@ -20,6 +20,8 @@ Events are recorded in an event store which becomes the principal source of the 
 
 Seperate data models are used for reading and writing information. This can be useful where is single model is too complex for reading and writing data.
 
+## Event Notified ETL
+
 From data processing or ETL perspective two patterns that are of primary interest are _Event Notification_ and _Event-Carried State Transfer_. Typical stream processing applications such as IOT, real-time telemetry systems usually uses the second approach i.e each event carry a full state. This is quite good if :
 
 1. Fully state can fit in the event pay load, and it can be represented in a structured format
@@ -36,7 +38,7 @@ Event notified ETL is an excellent alternative in such cases. It has the followi
 
 2. Events become natural interfaces and helps break up the long ETL pipelines into technical and functional boundaries. This helps to reason, build and explain individual pipeline segments with good alignment to these boundaries and reduces the complexity and difficulty in maintaining long chain of ETL pipelines typically associated with batch systems.
 
-## Challenges
+### Challenges and solutions
 
 Of course event notification is not panacea for all ETL problems. A highly decouple ETL has its benefits, however there are couple of key disadvantages.
 
@@ -45,6 +47,8 @@ Of course event notification is not panacea for all ETL problems. A highly decou
 2. It is easy to loose sight of the larger-scale flow. The solution to this problem is to build excellent end to end real-time system monitoring which can provide visibility at higher levels i.e. at the level of event subjects and types.
 
 Native capabilities provided by the major cloud platform makes it relatively easy to implement these solutions. For example, in Azure you can quite easily build deployment automation for required components using ARM templates, Azure CLI and github actions. Same is also true for monitoring; using existing capabilities such as Azure Monitor, Azure Data Explorer, Power BI and Kusto query language it is possible to build end to end flow monitoring with relatively less effort. Other platforms provides similar features e.g. AWS CloudWatch, AWS Kinesis Data Analytics, AWS Quick Sight. This makes event notification approach very compelling option for building ETL pipelines for modern cloud data platforms.
+
+## Application
 
 This repo contains a sample analytics application which is build using the _Event Notification_ pattern and can be used as template for getting a better understanding the usefulness of this approach for building ETL pipelines and some solutions to its challenges. It uses NYC Taxi data and is build using Azure Data Platform components.
 
