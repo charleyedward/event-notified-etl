@@ -36,7 +36,17 @@ Event notified ETL is an excellent alternative in such cases. It has the followi
 
 2. Events become natural interfaces and helps break up the long ETL pipelines into technical and functional boundaries. This helps to reason, build and explain individual pipeline segments with good alignment to these boundaries and reduces the complexity and difficulty in maintaining long chain of ETL pipelines typically associated with batch systems.
 
-This repo contains a sample application which is build using the _Event Notification_ pattern. It uses NYC Taxi data and is build using Azure Data Platform components.
+## Challenges
+
+Of course event notification is not panacea for all ETL problems. A highly decouple ETL has its benefits, however there are couple of key disadvantages.
+
+1. You might end up with large number of disparate components. This would at the very least make application deployment difficult. However this problem can be mitigated to a large extend, if you build deployment automation framework for application and infrastructure components.
+
+2. It is easy to loose sight of the larger-scale flow. The solution to this problem is to build excellent end to end real-time system monitoring which can provide visibility at higher levels i.e. at the level of event subjects and types.
+
+Native capabilities provided by the major cloud platform makes it relatively easy to implement these solutions. For example, in Azure you can quite easily build deployment automation for required components using ARM templates, Azure CLI and github actions. Same is also true for monitoring; using existing capabilities such as Azure Monitor, Azure Data Explorer, Power BI and Kusto query language it is possible to build end to end flow monitoring with relatively less effort. Other platforms provides similar features e.g. AWS CloudWatch, AWS Kinesis Data Analytics, AWS Quick Sight. This makes event notification approach very compelling option for building ETL pipelines for modern cloud data platforms.
+
+This repo contains a sample analytics application which is build using the _Event Notification_ pattern and can be used as template for getting a better understanding the usefulness of this approach for building ETL pipelines and some solutions to its challenges. It uses NYC Taxi data and is build using Azure Data Platform components.
 
 ![Design](https://github.com/bablulawrence/event-notified-etl/blob/main/design/app-design.svg)
 
