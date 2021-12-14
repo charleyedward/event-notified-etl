@@ -151,20 +151,7 @@ Under `Actions` in your forked repository, you will find following workflows. Ru
 | --- | ---------------- | ------------------------------------------ | --------- | -------- |
 | 1   | Deploy Resources | Provisions application components in Azure | run first | Manual   |
 
-### SharePoint Setup
-
-Create Two SharePont Team Sites - Green Taxi and Yellow Taxi and create following folders to upload taxi data
-
-- Green Taxi - Documents/monthly
-- Yellow Taxi - Documents/daily
-
-You will the data to upload in /data folder of this repo
-
-### Power Automate Setup
-
-Login to Power Automate and create connection to SharePoint and Azure Event Grid. Once the connections are setup, import the flows to publish the events from /power_automate of this repo.
-
-### Logic app connection authentication
+### 6. Logic app connection authentication
 
 Login to Azure Portal and authenticate following logic app connections.
 
@@ -176,20 +163,31 @@ Login to Azure Portal and authenticate following logic app connections.
 | 4   | azureblob             | Connection to Azure Data Lake Gen2 read and write data | Managed Identity                   |
 | 5   | powerbi               | Connection to refresh PowerBI Datasets                 | OAuth 2.0 Authorization Code Grant |
 
-### Publish PowerBI datasets and reports
+### 7. Give Storage Account access to Logic apps
 
-1. Open the PBIX file in /powerbi repo using Power BI Desktop. Update the following in the connection string
+Assign RBAC role `Storage Data Contributor` to manage identity of the Logic app `logic-app-raw-file-uploaded` by running following Azure CLI commands
 
-   1. Databricks workspace URI
-   2. Cluster Id
-   3. Personal Access Token
+```azurecli
 
-2. Login to Power BI service and publish the PBIX file to your workspace.
+servicePrincipalId=$(az resource list -g <Resource Group Name> -n 'logic-app-raw-file-uploaded' --query [*].identity.principalId --out tsv)
+az role assignment create --assignee $servicePrincipalId --role 'Storage Blob Data Contributor' --scope /subscriptions/<Subscription Id>/resourceGroups/rg-event-etl/providers/Microsoft.Storage/storageAccounts/<Storage Account Name>
 
-### Mount ADLS Gen2 in Databricks
+```
+
+### 8. Mount ADLS Gen2 in Databricks
 
 1. Create an Azure AD app and client secret.
-2. Create databricks scope and store the client secret value in it using the following commands
+
+2. Assign RBAC role `Storage Data Contributor` to Databricks workspace by running following Azure CLI commands
+
+```azurecli
+
+servicePrincipalId=$(az resource list -g <Resource Group Name> -n <Databricks Workspace Name> --query [*].identity.principalId --out tsv)
+az role assignment create --assignee $servicePrincipalId --role 'Storage Blob Data Contributor' --scope /subscriptions/<Subscription Id>/resourceGroups/rg-event-etl/providers/Microsoft.Storage/storageAccounts/<Databricks Workspace Name>
+
+```
+
+3. Create databricks scope and store the client secret value in it using the following commands
 
    ```bash
    databricks secrets create-scope --scope datalake
@@ -197,7 +195,30 @@ Login to Azure Portal and authenticate following logic app connections.
 
    ```
 
-3. Open the notebook `nb-01-setup.py` in the Databricks workspace and update the `clientId`, `scope`, `key`, `storageAccountName` and with the values from step 2. Run the notebook to mount the data lake directory in Databricks
+4. Open the notebook `nb-01-setup.py` in the Databricks workspace and update the `clientId`, `scope`, `key`, `storageAccountName` and with the values from step 2. Run the notebook to mount the data lake directory in Databricks
+
+### 9. Publish PowerBI datasets and reports
+
+1. Open the PBIX file from folder `/powerbi` using Power BI Desktop. Update the following setting in the data set connection from the databricks workspace created in
+
+   1. Databricks workspace URI
+   2. Cluster Id
+   3. Personal Access Token
+
+2. Login to Power BI service and publish the PBIX file to your workspace.
+
+### 10. SharePoint Setup
+
+Create Two SharePont Team Sites - Green Taxi and Yellow Taxi and create following folders to upload taxi data
+
+- Green Taxi - `Documents/monthly`
+- Yellow Taxi - `Documents/daily`
+
+You will the data to upload in /data folder of this repo
+
+### 11. Power Automate Setup
+
+Login to Power Automate and create connection to SharePoint and Azure Event Grid. Once the connections are setup, import the flows to publish the events from `/power_automate` folder of the repo.
 
 ## Running the application
 
