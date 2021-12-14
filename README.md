@@ -170,20 +170,26 @@ Assign RBAC role `Storage Data Contributor` to manage identity of the Logic app 
 ```azurecli
 
 servicePrincipalId=$(az resource list -g <Resource Group Name> -n 'logic-app-raw-file-uploaded' --query [*].identity.principalId --out tsv)
-az role assignment create --assignee $servicePrincipalId --role 'Storage Blob Data Contributor' --scope /subscriptions/<Subscription Id>/resourceGroups/rg-event-etl/providers/Microsoft.Storage/storageAccounts/<Storage Account Name>
+
+az role assignment create \
+    --assignee $servicePrincipalId \
+    --role 'Storage Blob Data Contributor' \
+    --scope /subscriptions/<Subscription Id>/resourceGroups/rg-event-etl/providers/Microsoft.Storage/storageAccounts/<Storage Account Name>
 
 ```
 
 ### 8. Mount ADLS Gen2 in Databricks
 
-1. Create an Azure AD app and client secret.
+1. Create an Azure AD app and client secret. Note the object id of the Service Principal(Enterprise Application)
 
 2. Assign RBAC role `Storage Data Contributor` to Databricks workspace by running following Azure CLI commands
 
 ```azurecli
 
-servicePrincipalId=$(az resource list -g <Resource Group Name> -n <Databricks Workspace Name> --query [*].identity.principalId --out tsv)
-az role assignment create --assignee $servicePrincipalId --role 'Storage Blob Data Contributor' --scope /subscriptions/<Subscription Id>/resourceGroups/rg-event-etl/providers/Microsoft.Storage/storageAccounts/<Databricks Workspace Name>
+az role assignment create \
+    --assignee <Service Principal Object Id> \
+    --role 'Storage Blob Data Contributor' \
+    --scope /subscriptions/<Subscription Id>/resourceGroups/rg-event-etl/providers/Microsoft.Storage/storageAccounts/<Storage Account Name>
 
 ```
 
