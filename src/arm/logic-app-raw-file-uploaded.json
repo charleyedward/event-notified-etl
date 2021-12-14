@@ -10,8 +10,12 @@
             "defaultValue": "eg-nyctaxi",
             "type": "string"
         },
+        "storage_account_name": {
+            "defaultValue": "datalakestor",
+            "type": "string"
+        },
         "conn_azure_blob_name": {
-            "defaultValue": "datalake",
+            "defaultValue": "azureblob",
             "type": "string"
         },
         "conn_azure_event_grid_name": {
@@ -35,7 +39,8 @@
         "topics_eg_nyctaxi_id" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections/', parameters('event_grid_topic_name'))]",
         "conn_resource_uri" : "[concat(resourceGroup().id, '/providers/Microsoft.Web/connections')]",
         "conn_provider_uri" : "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis')]",
-        "event_grid_topic_uri" : "[concat('/subscriptions/@{encodeURIComponent(''', subscription().subscriptionId , ''')}/providers/@{encodeURIComponent(''Microsoft.EventGrid.Topics'')}/resource/eventSubscriptions')]"
+        "event_grid_topic_uri" : "[concat('/subscriptions/@{encodeURIComponent(''', subscription().subscriptionId , ''')}/providers/@{encodeURIComponent(''Microsoft.EventGrid.Topics'')}/resource/eventSubscriptions')]",
+        "azure_blob_path": "[concat('/v2/datasets/@{encodeURIComponent(encodeURIComponent(''', parameters('storage_account_name'), '''))}/files')]"
     },
     "resources": [
         {
@@ -279,7 +284,7 @@
                                     }
                                 },
                                 "method": "post",
-                                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('datalakefdvu573zsnpjo'))}/files",
+                                "path": "[variables('azure_blob_path')]",
                                 "queries": {
                                     "folderPath": "@variables('rawFolderPath')",
                                     "name": "@body('Parse_Event_Body')?['data']?['fileName']",
