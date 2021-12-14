@@ -42,6 +42,33 @@ This repo contains a sample application which is build using the _Event Notifica
 
 ## Application Components
 
+### Azure Event Grid
+
+Azure Event Grid is used for messaging. Following is example of typical an event payload.
+
+```json
+[
+  {
+    "id": "d6d076de-ee09-4e4e-bc78-351f943d8215",
+    "subject": "NYCTaxi/GreenTaxi/TripData/green_tripdata_2021-07",
+    /*Uniquely identifies the subject of the event, which in this case is the Green Taxi data for July 2021*/
+    "eventType": "NYCTaxi.GreenTaxi.TripData.FileCleansed",
+    /*Type of the event, which in this case is raised when the Green Taxi data set is cleansed*/
+    "data": {
+      "folderPath": "/data/cleansed/green_taxi",
+      /*Folder path of the cleansed file*/
+      "fileName": "green_tripdata_2021-07.csv",
+      /*File name of the cleansed file*/
+      "uploadedBy": "BabluLawrence@mycompany.com"
+    },
+    "dataVersion": "1",
+    "metadataVersion": "1",
+    "eventTime": "2021-12-14T02:20:16.520314",
+    "topic": "/subscriptions/fc5bc1f1-a870-4343-a9d3-bb66214af500/resourceGroups/rg-event-etl/providers/Microsoft.EventGrid/topics/eg-topic-gdru573asdpeo"
+  }
+]
+```
+
 ### Sharepoint
 
 Two sharepoint sites are used for managing file ingestion.
@@ -186,8 +213,8 @@ Login to Azure Portal and authenticate following logic app connections.
 
    If any of the steps fail, an error event with suffix `.Failed` e.g. `NYCTaxi.GreenTaxi.TripData.FileCleansed.Failed` will be generated. Similar events will be generated when repeat the process for Yellow Taxi data.
 
-2. Execute the job `jb-04-zone-lookup-process-all`. This will load the NYC Zone Lookup data and create the necessary hive tables for data consumption
+2. Execute the job `jb-04-zone-lookup-process-all`. This will load the NYC Zone Lookup data and create the necessary hive tables for data consumption.
 
 3. Run the sample queries in notebook `nb-05-nyc-taxi-validate` to check the data.
 
-4. Login to the Power BI and run the nyc-taxi reports to explore the Total Passenger Count By Borough, Zone and Taxi Type
+4. Login to the Power BI and run the nyc-taxi reports to explore the Total Passenger Count By Borough, Zone and Taxi Type.
