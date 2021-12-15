@@ -6,15 +6,15 @@ Event driven architecture is becoming increasingly common in both transactional 
 
 1. ### Event Notification
 
-Events carry only minimum details, just enough to inform the clients about a state change. Clients need to contact source system to get the new state
+Events carry only minimum details, just enough to inform the clients about a state change. Clients need to contact source system to get the new state.
 
 2. ### Event-Carried State Transfer
 
-Events carry the fully copy of the new state. Clients enough information to do their processing from the event itself.
+Events carry the fully copy of the new state. Clients has enough information to do the processing from the event itself.
 
 3. ### Event-Sourcing
 
-Events are recorded in an event store which becomes the principal source of the truth and the system state is derived from it.
+Events are recorded in an event store which then becomes the principal source of the truth. This allows system state to be rebuild by reprocessing the events from events store in the future. e.g. version-control systems.
 
 4. ### CQRS
 
@@ -22,7 +22,7 @@ Seperate data models are used for reading and writing information. This can be u
 
 ## Event Notified ETL
 
-From data processing or ETL perspective two patterns that are of primary interest are _Event Notification_ and _Event-Carried State Transfer_. Typical stream processing applications such as IOT, real-time telemetry systems usually uses the second approach i.e each event carry a full state. This is quite good if:
+From data processing or ETL perspective two patterns that are of primary interest are _Event Notification_ and _Event-Carried State Transfer_. Typical stream processing applications such as IOT, real-time telemetry systems usually uses the second approach i.e. each event carry a full state. This is quite good if:
 
 1. Fully state can fit in the event pay load, and it can be represented in a structured format.
 
@@ -30,19 +30,19 @@ From data processing or ETL perspective two patterns that are of primary interes
 
 3. Event sources can be classified in to small number of categories.
 
-However what if the state change is sporadic, content is unstructured or large , and sources are quite varied. For example lets say you are building a system to perform analytics on large types of financial statements or forms. Some of these files e.g. General Ledger might be very large and might not have the same schema. _Event-Carried State Transfer_ might not be the right choice here and traditional batch process based on regular schedule ETL, polling for state changes and long orchestrated data pipelines might be awkward at best and inefficient and highly coupled at worst.
+However what if the state change is sporadic, content is unstructured or large, and sources are quite varied? For example lets say you are building a system to perform analytics on financial statements or forms of various kinds. Some of these files e.g. General Ledger might be very large and might not confirm to a fixed schema. _Event-Carried State Transfer_ might not be the right choice here and traditional batch process based on regular schedule ETL, polling for state changes and long orchestrated data pipelines might turn out to be inefficient and highly coupled.
 
-Event notified ETL is an excellent alternative in such cases. It has the following key benefits :
+Event notified ETL is an excellent alternative in such cases, with following key benefits :
 
-1. Low level of coupling between data sources, data processes and consumers, which allows for higher evolvability. Allows you to introduce new sources, consumers and data processing logic without any significant changes to the existing.
+1. Low level of coupling between data sources, data processes and consumers, and therefore better evolvability. Allows you to introduce new sources, consumers and data processing logic without significant changes to the existing ones.
 
-2. Events become natural interfaces and helps break up the long ETL pipelines into technical and functional boundaries. This helps to reason, build and explain individual pipeline segments with good alignment to these boundaries and reduces the complexity and difficulty in maintaining long chain of ETL pipelines typically associated with batch systems.
+2. Events become natural interfaces and helps break up the long ETL pipelines within the domain boundaries. This helps to reason, build and explain individual pipeline segments with good alignment to these boundaries and reduces the complexity and difficulty in maintaining long chain of ETL pipelines typically associated with batch systems.
 
 ### Challenges and solutions
 
 Of course event notification is not panacea for all ETL problems. A highly decouple ETL has its benefits, however there are couple of key disadvantages.
 
-1. You might end up with large number of disparate components. This would at the very least make application deployment difficult. However this problem can be mitigated to a large extend, if you build deployment automation framework for application and infrastructure components.
+1. You might end up with large number of disparate components. This could make application deployment complex and hard to maintain. However this problem can be mitigated to a large extend with a good automation process for deploying application and infrastructure components.
 
 2. It is easy to loose sight of the larger-scale flow. The solution to this problem is to build excellent end to end real-time system monitoring which can provide visibility at higher levels i.e. at the level of event subjects and types.
 
@@ -50,7 +50,7 @@ Native capabilities provided by the major cloud platform makes it relatively eas
 
 ## Application
 
-This repo contains a sample analytics application which is build using the _Event Notification_ pattern and can be used as template for getting a better understanding the usefulness of this approach for building ETL pipelines and some solutions to its challenges. It uses NYC Taxi data and is build using Azure Data Platform components.
+This repo contains a sample analytics application which is build using the event notification pattern and can be used as template for getting a better understanding of usefulness and challenges of using this approach for building ETL pipelines. This app also contains It uses NYC Taxi data and is build using Azure Data Platform components.
 
 ![Application Architecture](https://github.com/bablulawrence/event-notified-etl/blob/main/design/app-design.svg)
 
