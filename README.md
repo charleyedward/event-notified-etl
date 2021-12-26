@@ -40,7 +40,7 @@ Event notified ETL is an excellent alternative in such cases, with following key
 
 ### Challenges and solutions
 
-Of course event notification is not panacea for all ETL problems. A highly decouple ETL has its benefits, however there are couple of key disadvantages.
+Of course event notification is not panacea for all ETL. A highly decoupled ETL has its benefits, however there are couple of key disadvantages.
 
 1. You might end up with large number of disparate components. This could make application deployment complex and hard to maintain. However this problem can be mitigated to a large extend with a good automation process for deploying application and infrastructure components.
 
@@ -229,12 +229,14 @@ az role assignment create \
 
 ### 10. SharePoint Setup
 
-Create Two SharePont Team Sites - Green Taxi and Yellow Taxi and create following folders to upload taxi data
+Create Two SharePont Online Team Sites - Green Taxi and Yellow Taxi and create following folders to upload taxi data
 
 - Green Taxi - `Documents/monthly`
 - Yellow Taxi - `Documents/daily`
 
-You will the data to upload in /data folder of this repo
+You will the data to upload in /data folder of this repo.
+
+Note: You can sign up for Office 365 E3 license if you don't have access to a SharePoint Online subscription.
 
 ### 11. Power Automate Setup
 
@@ -259,3 +261,11 @@ Login to Power Automate and create connection to SharePoint and Azure Event Grid
 3. Run the sample queries in notebook `nb-05-nyc-taxi-validate` to check the data.
 
 4. Login to the Power BI and run the nyc-taxi reports to explore the Total Passenger Count By Borough, Zone and Taxi Type.
+
+## References
+
+1. https://martinfowler.com/articles/201701-event-driven.html
+2. https://docs.microsoft.com/en-us/azure/event-grid/overview
+3. https://www.microsoft.com/en-in/microsoft-365/enterprise/office-365-e3?activetab=pivot%3aoverviewtab
+4. https://docs.microsoft.com/en-us/power-automate/import-flow-solution
+5. https://docs.microsoft.com/en-us/power-automate/add-manage-connections
