@@ -6,7 +6,7 @@ Event driven architecture is becoming increasingly common in both transactional 
 
 1. ### Event Notification
 
-Events carry only minimum details, just enough to inform the consumers about a state change. Consumers need to contact source system to get the new state.
+Events carry only minimum details, just enough to inform the consumers about a state change. Consumers need to contact the producer to get the new state.
 
 2. ### Event-Carried State Transfer
 
@@ -14,7 +14,7 @@ Events carry the fully copy of the new state. Consumers has enough information t
 
 3. ### Event-Sourcing
 
-Events are recorded in an event store which then becomes the principal source of the truth. This allows system state to be rebuild by reprocessing the events from events store in the future. e.g. version-control systems.
+Events are recorded in an event store which then becomes the principal source of the truth. This allows system state to be rebuild by reprocessing the events from events store in the future.
 
 4. ### CQRS
 
@@ -264,8 +264,9 @@ Login to Power Automate and create connection to SharePoint and Azure Event Grid
 
 ## References
 
-1. https://martinfowler.com/articles/201701-event-driven.html
+1. https://martinfowler.com/articles/201701-event-driven.html2
 2. https://docs.microsoft.com/en-us/azure/event-grid/overview
 3. https://www.microsoft.com/en-in/microsoft-365/enterprise/office-365-e3?activetab=pivot%3aoverviewtab
 4. https://docs.microsoft.com/en-us/power-automate/import-flow-solution
 5. https://docs.microsoft.com/en-us/power-automate/add-manage-connections
+6. https://www1.nyc.gov/site/tlc/about/tlc-trip-record-data.page
