@@ -30,7 +30,7 @@ From the perspective of OLAP applications, the two patterns that are most useful
 
 3. Event sources can be classified in to small number of categories.
 
-However what if the state change is sporadic, content is unstructured or large, and sources are quite varied? For example lets say you are building a system to perform analytics on financial statements or forms of various kinds. Some of these files e.g. General Ledger might be very large and might not confirm to a fixed schema. _Event-Carried State Transfer_ might not be the right choice here and traditional batch process based on regular schedule ETL, polling for state changes and long orchestrated data pipelines might turn out to be inefficient and highly coupled.
+However what if the state change is sporadic, content is unstructured or large, and sources are quite varied? For example lets say you are building a system to perform analytics on financial statements or forms of various kinds. Some of these files might be very large and might not confirm to a fixed schema. _Event-Carried State Transfer_ might not be the right choice here and traditional batch process based on regular schedule ETL, polling for state changes and long orchestrated data pipelines might turn out to be inefficient and highly coupled.
 
 Event notified ETL is an excellent alternative in such cases, with following key benefits :
 
