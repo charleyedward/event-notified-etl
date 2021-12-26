@@ -6,11 +6,11 @@ Event driven architecture is becoming increasingly common in both transactional 
 
 1. ### Event Notification
 
-Events carry only minimum details, just enough to inform the clients about a state change. Clients need to contact source system to get the new state.
+Events carry only minimum details, just enough to inform the consumers about a state change. Consumers need to contact source system to get the new state.
 
 2. ### Event-Carried State Transfer
 
-Events carry the fully copy of the new state. Clients has enough information to do the processing from the event itself.
+Events carry the fully copy of the new state. Consumers has enough information to do the processing from the event itself.
 
 3. ### Event-Sourcing
 
@@ -22,7 +22,7 @@ Seperate data models are used for reading and writing information. This can be u
 
 ## Event Notified ETL
 
-From data processing or ETL perspective two patterns that are of primary interest are _Event Notification_ and _Event-Carried State Transfer_. Typical stream processing applications such as IOT, real-time telemetry systems usually uses the second approach i.e. each event carry a full state. This is quite good if:
+From the perspective of OLAP applications, the two patterns that are most useful are _Event Notification_ and _Event-Carried State Transfer_. Typical stream processing applications such as IOT, real-time telemetry and log analysis systems usually uses the second approach i.e. each event carry a full state. This is quite good if:
 
 1. Fully state can fit in the event pay load, and it can be represented in a structured format.
 
@@ -34,9 +34,9 @@ However what if the state change is sporadic, content is unstructured or large, 
 
 Event notified ETL is an excellent alternative in such cases, with following key benefits :
 
-1. Low level of coupling between data sources, data processes and consumers, and therefore better evolvability. Allows you to introduce new sources, consumers and data processing logic without significant changes to the existing ones.
+1. Low level of coupling between data sources, data processes and consumers, and therefore better evolvability. It allows you to introduce new sources, consumers and data processing logic without significant changes to the existing ones.
 
-2. Events become natural interfaces and helps break up the long ETL pipelines within the domain boundaries. This helps to reason, build and explain individual pipeline segments with good alignment to these boundaries and reduces the complexity and difficulty in maintaining long chain of ETL pipelines typically associated with batch systems.
+2. Events become natural interfaces and helps break up the long ETL pipelines within the domain boundaries. This helps to reason, build and explain individual pipeline segments with good alignment to these boundaries and reduces the complexity and difficulty in maintaining long chain of ETL pipelines typically associated with traditional batch systems.
 
 ### Challenges and solutions
 
@@ -46,7 +46,7 @@ Of course event notification is not panacea for all ETL. A highly decoupled ETL 
 
 2. It is easy to loose sight of the larger-scale flow. The solution to this problem is to build excellent end to end real-time system monitoring which can provide visibility at higher levels i.e. at the level of event subjects and types.
 
-Native capabilities provided by the major cloud platform makes it relatively easy to implement these solutions. For example, in Azure you can quite easily build deployment automation for required components using ARM templates, Azure CLI and github actions. Same is also true for monitoring; using existing capabilities such as Azure Monitor, Azure Data Explorer, Power BI and Kusto query language it is possible to build end to end flow monitoring with relatively less effort. Other platforms provides similar features e.g. AWS CloudWatch, AWS Kinesis Data Analytics, AWS Quick Sight. This makes event notification approach very compelling option for building ETL pipelines for modern cloud data platforms.
+Native capabilities provided by the major cloud platform makes it relatively easy to implement these solutions. For example, in Azure you can quite easily build deployment automation for required components using ARM templates, Azure CLI and github actions. Same is also true for monitoring; using existing capabilities such as Azure Monitor, Azure Data Explorer, Power BI and Kusto query language it is possible to build end to end flow monitoring with relatively less effort. Other platforms provides similar features e.g. AWS CloudWatch, AWS Kinesis Data Analytics, AWS Quick Sight. This makes event notification especially suitable for building ETL pipelines for modern cloud data platforms.
 
 ## Application
 
