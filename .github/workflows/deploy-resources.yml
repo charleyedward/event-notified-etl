@@ -30,9 +30,9 @@ jobs:
         with:
           azPSVersion: "3.1.0"
           inlineScript: |
-            echo "::set-output name=subscriptionId::$((Get-AzContext).Subscription.id)"
-            echo "::set-output name=tenantId::$((Get-AzContext).Tenant.id)"
-            echo "::set-output name=resourceGroupName::$((Get-AzResourceGroup).ResourceGroupName)"
+            echo "subscriptionId::$((Get-AzContext).Subscription.id)" >> $GITHUB_OUTPUT
+            echo "tenantId::$((Get-AzContext).Tenant.id)" >> $GITHUB_OUTPUT
+            echo "resourceGroupName::$((Get-AzResourceGroup).ResourceGroupName)" >> $GITHUB_OUTPUT
       
       - name: Create Databricks Workspace
         uses: azure/arm-deploy@v1
