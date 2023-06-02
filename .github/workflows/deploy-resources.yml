@@ -32,7 +32,7 @@ jobs:
           inlineScript: |
             echo "subscriptionId::$((Get-AzContext).Subscription.id)" >> $GITHUB_OUTPUT
             echo "tenantId::$((Get-AzContext).Tenant.id)" >> $GITHUB_OUTPUT
-            echo "resourceGroupName::$((Get-AzResourceGroup).ResourceGroupName)" >> $GITHUB_OUTPUT
+            echo "resourceGroupName::ResGroup01" >> $GITHUB_OUTPUT
       
       - name: Create Databricks Workspace
         uses: azure/arm-deploy@v1
